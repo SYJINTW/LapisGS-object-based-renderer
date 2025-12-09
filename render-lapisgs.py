@@ -28,72 +28,57 @@ except:
 
 import torch.nn.functional as F
 
-def render_set(model_path, name, iteration, views, gaussians, pipeline, background, train_test_exp, separate_sh):
-    far_render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "far_renders")
+def render_set(model_path, name, iteration, views, gaussians_list, pipeline, background, train_test_exp, separate_sh):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
+    render_rgba_foreground_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders_rgba_foreground")
+    render_rgba_background_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders_rgba_background")
+    render_rgba_image_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders_rgba_image")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
 
-    makedirs(far_render_path, exist_ok=True)
     makedirs(render_path, exist_ok=True)
+    makedirs(render_rgba_foreground_path, exist_ok=True)
+    makedirs(render_rgba_background_path, exist_ok=True)
+    makedirs(render_rgba_image_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
 
-    
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        
-        # Drop resolution by half
-        view.image_height = view.image_height // 2
-        view.image_width = view.image_width // 2
+        # view.image_height = int(view.image_height//4)
+        # view.image_width = int(view.image_width//4)
         
         # bg_color_template = [0, 0, 0] # black background
         bg_color_template = [1, 1, 1] # white background
         bg_color = torch.tensor(bg_color_template, dtype=torch.float32, device="cuda").view(3, 1, 1)
         bg_color = bg_color.expand(3, view.image_height, view.image_width)
         bg_depth = torch.full((1, view.image_height, view.image_width), 0, dtype=torch.float32, device="cuda")
-    
+
         gt = view.original_image[0:3, :, :]
         
-        # Far + bg
-        far_rendering = render(view, gaussians, pipeline, 
-                               bg_color, bg_depth,
-                               far_thres=100.0, near_thres=4.0,
-                               use_trained_exp=train_test_exp, separate_sh=separate_sh)["render"]
-
-
-        print("type of far_rendering:", type(far_rendering))
-        print("shape of far_rendering:", far_rendering.shape)
+        for gaussians in gaussians_list:
+            render_results = render(view, gaussians, pipeline, 
+                            bg_color, bg_depth,
+                            far_thres=100.0, near_thres=-1.0,
+                            use_trained_exp=train_test_exp, separate_sh=separate_sh)
+            break
         
-        # Add batch dimension: [3, 400, 400] -> [1, 3, 400, 400]
-        input_tensor = far_rendering.unsqueeze(0)
-        
-        # Interpolate (Scale)
-        # mode='bilinear' is standard for images (smooths values). 
-        # mode='nearest' preserves exact pixel values (blocky).
-        scaled_tensor = F.interpolate(input_tensor, size=(800, 800), mode='bilinear', align_corners=False)
+        print("render min/max: ", render_results["render"].min().item(), render_results["render"].max().item()) # [YC] debug
+        print("opacity min/max: ", render_results["opacity"].min().item(), render_results["opacity"].max().item()) # [YC] debug
 
-        # Remove batch dimension: [1, 3, 800, 800] -> [3, 800, 800]
-        far_rendering_scaled = scaled_tensor.squeeze(0)
-
-        # Double resolution
-        view.image_height = view.image_height * 2
-        view.image_width = view.image_width * 2
-        
-        # Near + Far + bg
-        rendering = render(view, gaussians, pipeline, 
-                           far_rendering_scaled, bg_depth,
-                           far_thres=4.0, near_thres=-1.0,
-                           use_trained_exp=train_test_exp, separate_sh=separate_sh)["render"]
-        
-        # rendering = render(view, gaussians, pipeline, 
-        #                    bg_color, bg_depth,
-        #                    far_thres=100.0, near_thres=-1.0,
-        #                    use_trained_exp=train_test_exp, separate_sh=separate_sh)["render"]
+        rgba_foreground = torch.cat([render_results["render"], 1 - render_results["opacity"]], dim=0)
+        rgba_background = torch.cat([bg_color, render_results["opacity"]], dim=0)
+        rgba_image = render_results["render"] + bg_color * render_results["opacity"]
         
         if args.train_test_exp:
             far_rendering = far_rendering[..., far_rendering.shape[-1] // 2:]
             gt = gt[..., gt.shape[-1] // 2:]
         
-        torchvision.utils.save_image(far_rendering, os.path.join(far_render_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
+        # input_tensor = render_results["render"].unsqueeze(0)
+        # scaled_tensor = F.interpolate(input_tensor, size=(800, 800), mode='bilinear', align_corners=False)
+        # render_results["render"] = scaled_tensor.squeeze(0)
+        
+        torchvision.utils.save_image(render_results["render"], os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
+        torchvision.utils.save_image(rgba_foreground, os.path.join(render_rgba_foreground_path, '{0:05d}'.format(idx) + ".png"))
+        torchvision.utils.save_image(rgba_background, os.path.join(render_rgba_background_path, '{0:05d}'.format(idx) + ".png"))
+        torchvision.utils.save_image(rgba_image, os.path.join(render_rgba_image_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
         
         if idx >= 5:
@@ -103,15 +88,27 @@ def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParam
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
         scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
-
+        
+        object_path_list = [
+            # "/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/point_cloud/gs_10/point_cloud.ply",
+            # "/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/point_cloud/object_1/point_cloud.ply",
+            # "/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/point_cloud/object_2/point_cloud.ply"
+            ] 
+        object_list = [gaussians]
+        for object_path in object_path_list:
+            obj = GaussianModel(dataset.sh_degree)
+            obj.load_ply(object_path)
+            object_list.append(obj)
+        
         bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
         if not skip_train:
-             render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, dataset.train_test_exp, separate_sh)
+            # render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, dataset.train_test_exp, separate_sh)
+            render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), object_list, pipeline, background, dataset.train_test_exp, separate_sh)
 
-        if not skip_test:
-             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background, dataset.train_test_exp, separate_sh)
+        # if not skip_test:
+        #     render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background, dataset.train_test_exp, separate_sh)
 
 if __name__ == "__main__":
     # Set up command line argument parser

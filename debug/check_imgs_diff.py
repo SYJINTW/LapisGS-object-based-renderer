@@ -61,12 +61,17 @@ def analyze_distortion(img1, img2, output_filename="distortion_map.png"):
     print(f"Distortion map saved to: {output_filename}")
 
 # --- Usage ---
-image_name = "00005"
+# image_name = "00005"
 # path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000/renders/{image_name}.png"
 # path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_merge/renders/{image_name}.png"
 
-path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000/renders/{image_name}.png"
-path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_original/renders/{image_name}.png"
+# image_name = "00005"
+# path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000/renders/{image_name}.png"
+# path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_original/renders/{image_name}.png"
+
+image_name = "00002"
+path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_gs_dw2/renders/{image_name}.png"
+path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_img_dw2/renders/{image_name}.png"
 
 
 # Load

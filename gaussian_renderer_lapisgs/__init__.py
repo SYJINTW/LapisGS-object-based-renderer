@@ -96,7 +96,12 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
                 shs = pc.get_features
     else:
         colors_precomp = override_color
-
+    
+    # resolutions = torch.tensor([1.0 for i in range(320857)], device="cuda")  # [YC] add
+    # resolutions[254728:-1] = 4.0
+    resolutions = torch.tensor([4.0 for i in range(320857)], device="cuda")  # [YC] add
+    print(resolutions)  # [YC] debug
+    
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     depth_image = None
     if separate_sh:
@@ -117,6 +122,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
             shs = shs,
             colors_precomp = colors_precomp,
             opacities = opacity,
+            resolutions = resolutions, # [YC] add
             scales = scales,
             rotations = rotations,
             cov3D_precomp = cov3D_precomp)
@@ -136,17 +142,18 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
             shs = shs,
             colors_precomp = colors_precomp,
             opacities = opacity,
+            resolutions = resolutions, # [YC] add
             scales = scales,
             rotations = rotations,
             cov3D_precomp = cov3D_precomp)
     
-    print("type(final_opacity): ", type(final_opacity)) # [YC] debug
-    print("final_opacity shape: ", final_opacity.shape) # [YC] debug
-    print("final_opacity min/max: ", final_opacity.min().item(), final_opacity.max().item()) # [YC] debug
-    data = final_opacity.squeeze().cpu().numpy()
-    rescaled = (data * 255).astype(np.uint8)
-    img = Image.fromarray(rescaled, mode='L') # 'L' mode is for grayscale
-    img.save("visualized_opacity.png")
+    # print("type(final_opacity): ", type(final_opacity)) # [YC] debug
+    # print("final_opacity shape: ", final_opacity.shape) # [YC] debug
+    # print("final_opacity min/max: ", final_opacity.min().item(), final_opacity.max().item()) # [YC] debug
+    # data = final_opacity.squeeze().cpu().numpy()
+    # rescaled = (data * 255).astype(np.uint8)
+    # img = Image.fromarray(rescaled, mode='L') # 'L' mode is for grayscale
+    # img.save("visualized_opacity.png")
     
     # Apply exposure to rendered image (training only)
     if use_trained_exp:
@@ -162,6 +169,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
         "visibility_filter" : (radii > 0).nonzero(),
         "radii": radii,
         "depth" : depth_image,
+        "opacity" : final_opacity
         }
     
     return out
