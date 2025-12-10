@@ -613,3 +613,27 @@ pip install submodules\simple-knn
 - *Wait, but ```<insert feature>``` isn't optimized and could be much better?* There are several parts we didn't even have time to think about improving (yet). The performance you get with this prototype is probably a rather slow baseline for what is physically possible.
 
 - *Something is broken, how did this happen?* We tried hard to provide a solid and comprehensible basis to make use of the paper's method. We have refactored the code quite a bit, but we have limited capacity to test all possible usage scenarios. Thus, if part of the website, the code or the performance is lacking, please create an issue. If we find the time, we will do our best to address it.
+
+```bash
+python -m pip install submodules/diff-gaussian-rasterization-lapisgs
+```
+
+If you want to use the pre-trained model with specific Gaussian resolution. The gs_res_list should only have one integer or it will cause error.
+```bash
+python render-lapisgs.py -m <path to pre-trained model> -s <path to COLMAP dataset> --gs_res_list <Rendering resolutions>
+```
+
+If you want to render your own Gaussians in multiple Gaussian resolutions. The length of the gs_res_list should be the same as gs_res_list or it will cause error.
+```bash
+python render-lapisgs.py -m <path to pre-trained model> -s <path to COLMAP dataset> --gs_path_list <paths to pre-trained ply> --gs_res_list <Rendering resolutions>
+```
+
+Example command
+```bash
+python render-lapisgs.py \
+-m /home/syjintw/Desktop/NUS/dlapisgs-output/longdress/opacity/longdress_res1/dynamic_1051 \
+-s /home/syjintw/Desktop/NUS/dataset/longdress/longdress_res1/1051 \
+--gs_res_list 1
+```
+
+For LapisGS results, we need to modify the cfg_args file by adding "depths='', train_test_exp=False"
