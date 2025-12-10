@@ -20,8 +20,7 @@ from PIL import Image
 
 def render(viewpoint_camera, pc : GaussianModel, pipe, 
            bg_color : torch.Tensor, bg_depth : torch.Tensor, 
-           far_thres: float = 100.0, near_thres: float = 0.0,
-           thres: float = 0.0,
+           gs_res : torch.Tensor = torch.tensor([]),
            scaling_modifier = 1.0, separate_sh = False, override_color = None, use_trained_exp=False):
     """
     Render the scene. 
@@ -55,8 +54,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
         campos=viewpoint_camera.camera_center,
         prefiltered=False,
         debug=pipe.debug,
-        far_thres=far_thres,
-        near_thres=near_thres
         # antialiasing=pipe.antialiasing
     )
 
@@ -97,10 +94,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
     else:
         colors_precomp = override_color
     
-    # resolutions = torch.tensor([1.0 for i in range(320857)], device="cuda")  # [YC] add
-    # resolutions[254728:-1] = 4.0
-    resolutions = torch.tensor([4.0 for i in range(320857)], device="cuda")  # [YC] add
-    print(resolutions)  # [YC] debug
+    if len(gs_res) == 0:
+        resolutions = torch.tensor([1.0 for _ in range(len(pc.get_xyz))], device="cuda")  # [YC] add
     
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     depth_image = None
@@ -122,7 +117,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
             shs = shs,
             colors_precomp = colors_precomp,
             opacities = opacity,
-            resolutions = resolutions, # [YC] add
+            resolutions = gs_res, # [YC] add
             scales = scales,
             rotations = rotations,
             cov3D_precomp = cov3D_precomp)
@@ -142,7 +137,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe,
             shs = shs,
             colors_precomp = colors_precomp,
             opacities = opacity,
-            resolutions = resolutions, # [YC] add
+            resolutions = gs_res, # [YC] add
             scales = scales,
             rotations = rotations,
             cov3D_precomp = cov3D_precomp)
