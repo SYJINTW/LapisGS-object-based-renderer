@@ -471,3 +471,55 @@ class GaussianModel:
     def add_densification_stats(self, viewspace_point_tensor, update_filter):
         self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
+        
+    # >>>> [YC] add
+    def merge(self, other_model):
+        """
+        Merges another GaussianModel into the current one.
+        Handles device mismatches (CPU vs CUDA) automatically.
+        """
+        # 1. Determine the target device
+        # If the current model is empty (0 points), adopt the device of the other_model 
+        # (usually CUDA) to avoid accidentally processing on CPU.
+        if self._xyz.shape[0] == 0:
+            device = other_model._xyz.device
+            # Move empty placeholders to the correct device so torch.cat works
+            self._xyz = self._xyz.to(device)
+            self._features_dc = self._features_dc.to(device)
+            self._features_rest = self._features_rest.to(device)
+            self._opacity = self._opacity.to(device)
+            self._scaling = self._scaling.to(device)
+            self._rotation = self._rotation.to(device)
+        else:
+            device = self._xyz.device
+
+        # 2. Check compatibility
+        if self.max_sh_degree != other_model.max_sh_degree:
+            raise ValueError(f"Cannot merge models with different SH degrees: {self.max_sh_degree} vs {other_model.max_sh_degree}")
+
+        # 3. Concatenate parameters (Explicitly moving other_model data to target device)
+        new_xyz = torch.cat((self._xyz.data, other_model._xyz.data.to(device)), dim=0)
+        new_features_dc = torch.cat((self._features_dc.data, other_model._features_dc.data.to(device)), dim=0)
+        new_features_rest = torch.cat((self._features_rest.data, other_model._features_rest.data.to(device)), dim=0)
+        new_opacity = torch.cat((self._opacity.data, other_model._opacity.data.to(device)), dim=0)
+        new_scaling = torch.cat((self._scaling.data, other_model._scaling.data.to(device)), dim=0)
+        new_rotation = torch.cat((self._rotation.data, other_model._rotation.data.to(device)), dim=0)
+
+        # 4. Update self parameters
+        self._xyz = nn.Parameter(new_xyz.requires_grad_(True))
+        self._features_dc = nn.Parameter(new_features_dc.requires_grad_(True))
+        self._features_rest = nn.Parameter(new_features_rest.requires_grad_(True))
+        self._opacity = nn.Parameter(new_opacity.requires_grad_(True))
+        self._scaling = nn.Parameter(new_scaling.requires_grad_(True))
+        self._rotation = nn.Parameter(new_rotation.requires_grad_(True))
+
+        # 5. Handle auxiliary attributes
+        self.active_sh_degree = max(self.active_sh_degree, other_model.active_sh_degree)
+        
+        # Reset optimizer buffers to new size on the correct device
+        self.xyz_gradient_accum = torch.zeros((self._xyz.shape[0], 1), device=device)
+        self.denom = torch.zeros((self._xyz.shape[0], 1), device=device)
+        self.max_radii2D = torch.zeros((self._xyz.shape[0]), device=device)
+        
+        print(f"Merged model. New point count: {self._xyz.shape[0]}")
+    # <<<< [YC] add

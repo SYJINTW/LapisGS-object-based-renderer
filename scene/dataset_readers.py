@@ -225,7 +225,7 @@ def readColmapSceneInfo(path, images, depths, eval, train_test_exp, llffhold=8):
                            is_nerf_synthetic=False)
     return scene_info
 
-def readCamerasFromTransforms(path, transformsfile, depths_folder, white_background, is_test, extension=".png"):
+def readCamerasFromTransforms(path, transformsfile, depths_folder, white_background, is_test, extension=".png", fake_gt=False):
     cam_infos = []
 
     with open(os.path.join(path, transformsfile)) as json_file:
@@ -248,7 +248,10 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
 
             image_path = os.path.join(path, cam_name)
             image_name = Path(cam_name).stem
-            image = Image.open(image_path)
+            if fake_gt:
+                image = Image.new("RGBA", (800, 800), (255, 0, 0, 255))
+            else:
+                image = Image.open(image_path)
 
             im_data = np.array(image.convert("RGBA"))
 
@@ -270,13 +273,13 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
             
     return cam_infos
 
-def readNerfSyntheticInfo(path, white_background, depths, eval, extension=".png"):
+def readNerfSyntheticInfo(path, white_background, depths, eval, extension=".png", fake_gt=False):
 
     depths_folder=os.path.join(path, depths) if depths != "" else ""
     print("Reading Training Transforms")
-    train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", depths_folder, white_background, False, extension)
+    train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", depths_folder, white_background, False, extension, fake_gt=fake_gt)
     print("Reading Test Transforms")
-    test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", depths_folder, white_background, True, extension)
+    test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", depths_folder, white_background, True, extension, fake_gt=fake_gt)
     
     if not eval:
         train_cam_infos.extend(test_cam_infos)

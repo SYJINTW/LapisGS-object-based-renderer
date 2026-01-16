@@ -40,6 +40,12 @@ class FusedSSIMMap(torch.autograd.Function):
 def l1_loss(network_output, gt):
     return torch.abs((network_output - gt)).mean()
 
+def l1_loss_mask(network_output, gt, mask):
+    mask_expand = mask.expand_as(network_output)
+    loss = torch.abs((network_output - gt) * mask_expand)
+    mask_sum = mask_expand.reshape(mask.shape[0], -1).sum(1, keepdim=True)
+    return loss.reshape(loss.shape[0], -1).sum(1, keepdim=True) / (mask_sum + 1e-8)
+
 def l2_loss(network_output, gt):
     return ((network_output - gt) ** 2).mean()
 

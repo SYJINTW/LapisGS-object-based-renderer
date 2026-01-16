@@ -18,11 +18,18 @@ from scene.gaussian_model import GaussianModel
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 
+from pathlib import Path
+
 class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0]):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0],
+                # >>>> [YC] add
+                our_camera_path : str = "",
+                fake_gt : bool = False
+                # <<<< [YC] add
+                ):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -44,7 +51,7 @@ class Scene:
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.depths, args.eval, args.train_test_exp)
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
-            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.depths, args.eval)
+            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.depths, args.eval, fake_gt=fake_gt)
         else:
             assert False, "Could not recognize scene type!"
 
@@ -73,6 +80,15 @@ class Scene:
             self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args, scene_info.is_nerf_synthetic, False)
             print("Loading Test Cameras")
             self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args, scene_info.is_nerf_synthetic, True)
+            if our_camera_path is not "":
+                # print("our_camera_path is not None")
+                from scene.dataset_readers import readCamerasFromTransforms
+                self.our_cameras = {}
+                path = Path(our_camera_path)
+                print(path.parent)
+                print(path.name)
+                our_cam_infos = readCamerasFromTransforms(path.parent, path.name, "", args.white_background, True, ".png", fake_gt=fake_gt)
+                self.our_cameras[resolution_scale] = cameraList_from_camInfos(our_cam_infos, resolution_scale, args, scene_info.is_nerf_synthetic, True)
 
         if self.loaded_iter:
             self.gaussians.load_ply(os.path.join(self.model_path,
@@ -98,3 +114,6 @@ class Scene:
 
     def getTestCameras(self, scale=1.0):
         return self.test_cameras[scale]
+
+    def getOurCameras(self, scale=1.0):
+        return self.our_cameras[scale]

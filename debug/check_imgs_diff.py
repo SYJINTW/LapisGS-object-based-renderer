@@ -69,10 +69,33 @@ def analyze_distortion(img1, img2, output_filename="distortion_map.png"):
 # path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000/renders/{image_name}.png"
 # path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_original/renders/{image_name}.png"
 
-image_name = "00002"
-path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_gs_dw2/renders/{image_name}.png"
-path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_img_dw2/renders/{image_name}.png"
+# image_name = "00002"
+# path1 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_gs_dw2/renders/{image_name}.png"
+# path2 = f"/mnt/data1/syjintw/NUS/gaussian-splatting/output/materials/train/ours_30000_img_dw2/renders/{image_name}.png"
 
+# for i in range(50):
+#     image_name = f"{i:05d}"
+#     path1 = f"/home/syjintw/Desktop/NUS/lapisgs-output/materials/opacity/materials_res4/ours_4x_factor1/ours_30000/renders/{image_name}.png"
+#     path2 = f"/home/syjintw/Desktop/NUS/lapisgs-output/materials/opacity/materials_res4/ours_4x_factor1/ours_30000/renders/{image_name}.png"
+
+#     # Load
+#     img1 = load_with_opencv(path1)
+#     img2 = load_with_opencv(path2)
+
+#     # Ensure shapes match before analysis
+#     if img1.shape != img2.shape:
+#         print(f"Warning: Shapes differ! {img1.shape} vs {img2.shape}")
+#         # Optional: Resize img2 to match img1
+#         # img2 = transforms.Resize((img1.shape[1], img1.shape[2]))(img2)
+
+#     analyze_distortion(img1, img2, output_filename=f"distortion_map_{image_name}.png")
+
+scene_name = "lego"
+image_name = "00008"
+path1 = f"/home/syjintw/Desktop/NUS/lapisgs-output/{scene_name}_old/opacity/{scene_name}_res4/ours_4x_factor1/ours_30000/gt/{image_name}.png"
+path2 = f"/home/syjintw/Desktop/NUS/lapisgs-output/{scene_name}/opacity/{scene_name}_res4/ours_4x_factor1/ours_30000/gt/{image_name}.png"
+# path1 = f"/home/syjintw/Desktop/NUS/lapisgs-output/materials_old/opacity/materials_res4/ours_4x_factor1/ours_30000/renders/{image_name}.png"
+# path2 = f"/home/syjintw/Desktop/NUS/lapisgs-output/materials/opacity/materials_res4/ours_4x_factor1/ours_30000/renders/{image_name}.png"
 
 # Load
 img1 = load_with_opencv(path1)

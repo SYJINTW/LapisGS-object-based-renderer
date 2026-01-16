@@ -40,23 +40,55 @@ class Camera(nn.Module):
             self.data_device = torch.device("cuda")
 
         resized_image_rgb = PILtoTorch(image, resolution)
-        gt_image = resized_image_rgb[:3, ...]
+        
+        # # >>>> [YC] comment out the old code
+        # gt_image = resized_image_rgb[:3, ...]
+        # self.alpha_mask = None
+        # if resized_image_rgb.shape[0] == 4:
+        #     self.alpha_mask = resized_image_rgb[3:4, ...].to(self.data_device)
+        # else: 
+        #     self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...].to(self.data_device))
+
+        # if train_test_exp and is_test_view:
+        #     if is_test_dataset:
+        #         self.alpha_mask[..., :self.alpha_mask.shape[-1] // 2] = 0
+        #     else:
+        #         self.alpha_mask[..., self.alpha_mask.shape[-1] // 2:] = 0
+
+        # self.original_image = gt_image.clamp(0.0, 1.0).to(self.data_device)
+        # self.image_width = self.original_image.shape[2]
+        # self.image_height = self.original_image.shape[1]
+        # # <<<< [YC] comment out the old code
+        
+        # >>>> [YC] Change to new ground truth image loading with Premultiplied Alpha
+        # 1. 先把 RGB 和 Alpha 分開拿出來
+        gt_rgb = resized_image_rgb[:3, ...]
         self.alpha_mask = None
         if resized_image_rgb.shape[0] == 4:
             self.alpha_mask = resized_image_rgb[3:4, ...].to(self.data_device)
+            
+            # 【關鍵修改】執行 Premultiply Alpha
+            # 將 RGB 乘上 Alpha，這會去除邊緣混合到的白色雜訊
+            gt_rgb = gt_rgb.to(self.data_device)
+            gt_image = gt_rgb * self.alpha_mask
+            
         else: 
             self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...].to(self.data_device))
-
+            gt_image = gt_rgb.to(self.data_device) # 如果沒有 alpha，就直接用 RGB
+            
+        # 處理測試集的遮罩邏輯 (保持原本邏輯不變)
         if train_test_exp and is_test_view:
             if is_test_dataset:
                 self.alpha_mask[..., :self.alpha_mask.shape[-1] // 2] = 0
             else:
                 self.alpha_mask[..., self.alpha_mask.shape[-1] // 2:] = 0
-
+        
+        # 儲存最終圖像
         self.original_image = gt_image.clamp(0.0, 1.0).to(self.data_device)
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]
-
+        # <<<< [YC] Change to new ground truth image loading with Premultiplied Alpha
+        
         self.invdepthmap = None
         self.depth_reliable = False
         if invdepthmap is not None:

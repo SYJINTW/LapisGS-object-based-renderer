@@ -74,14 +74,22 @@ def render_set(model_path, name, iteration, views,
     
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, separate_sh: bool, 
                 gs_path_list : list = [], 
-                gs_res_list : list = [1]):
+                gs_res_list : list = [1],
+                our_cam_name : str = "ours",
+                our_camera_path : str = "",
+                bg_color : list = [1.0, 1.0, 1.0]
+                ):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+        # scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False,
+                      # >>>> [YC] add
+                      our_camera_path = our_camera_path
+                      # <<<< [YC] add
+                      )
         
         # Just use the GaussianModel loaded from dataset
         if len(gs_path_list) == 0:
-            print("Use default Gaussian model from dataset.")
             if len(gs_res_list) == 0:
                 gs_res = torch.tensor([1.0 for _ in range(len(gaussians.get_xyz))], device="cuda")
             elif len(gs_res_list) == 1:
@@ -90,20 +98,19 @@ def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParam
                 print("Error: Wrong gs_res_list length.")
                 return
         elif len(gs_res_list) == len(gs_path_list):
-            print("Use user specified Gaussian models.")
-            gaussians = GaussianModel(dataset.sh_degree) # Initialize an empty GaussianModel
+            gaussians = GaussianModel(dataset.sh_degree)
             _gs_res = []
             for gs_path, gs_res_level in zip(gs_path_list, gs_res_list):
                 obj = GaussianModel(dataset.sh_degree)
                 obj.load_ply(gs_path)
                 gaussians.merge(obj)
-                _gs_res.extend([float(gs_res_level) for i in range(len(obj.get_xyz))])
+                _gs_res.extend([float(gs_res_level) for i in range(len(obj.get_xyz()))])
             gs_res = torch.tensor(_gs_res, device="cuda")
         else:
             print("Error: gs_res_list length must match gs_path_list length.")
             return
         
-        bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
+        # bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
         if not skip_train:
@@ -115,6 +122,11 @@ def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParam
             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), 
                        gaussians, gs_res, 
                        pipeline, background, dataset.train_test_exp, separate_sh)
+        
+        if our_camera_path:
+            render_set(dataset.model_path, our_cam_name, scene.loaded_iter, scene.getOurCameras(), 
+                        gaussians, gs_res, 
+                        pipeline, background, dataset.train_test_exp, separate_sh)
             
             
 if __name__ == "__main__":
@@ -128,6 +140,9 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--gs_path_list", nargs='*', type=str, default=[], help="List of paths to additional Gaussian models to render together with the main model.")
     parser.add_argument("--gs_res_list", nargs='*', type=int, default=[], help="List of resolution levels for each additional Gaussian model.")
+    parser.add_argument("--our_cam_name", type=str, default="", help="Name of our cam for rendering results name.")
+    parser.add_argument("--our_cam_path", type=str, default="", help="Path to our camera transforms JSON file.")
+    parser.add_argument("--bg_color", nargs='*', type=float, default=[1.0, 1.0, 1.0], help="Background color as three floats (R G B).")
     args = get_combined_args(parser)
     print("Rendering " + args.model_path)
 
@@ -137,6 +152,9 @@ if __name__ == "__main__":
 
     render_sets(model.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, SPARSE_ADAM_AVAILABLE,
                 # >>>> [YC] add
-                gs_path_list=args.gs_path_list, gs_res_list=args.gs_res_list
+                gs_path_list=args.gs_path_list, gs_res_list=args.gs_res_list,
+                our_cam_name=args.our_cam_name,
+                our_camera_path=args.our_cam_path,
+                bg_color=args.bg_color
                 # <<<< [YC] add
                 )

@@ -14,3 +14,6 @@
 [submodule "submodules/fused-ssim"]
 	path = submodules/fused-ssim
 	url = https://github.com/rahul-goel/fused-ssim.git
+[submodule "submodules/pytorch-msssim"]
+	path = submodules/pytorch-msssim
+	url = https://github.com/jinhwanlazy/pytorch-msssim.git

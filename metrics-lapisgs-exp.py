@@ -61,15 +61,14 @@ def readMask(mask_path):
     return mask
 
 def evaluate(model_paths, cam_name, 
-            gt_dir, renders_dir,
-            mask_dir):
-
+            gt_dir, mask_dir, output_dir):
+    gt_dir = Path(gt_dir)
+    print("GT dir:", gt_dir)
     full_dict = {}
     per_view_dict = {}
     full_dict_polytopeonly = {}
     per_view_dict_polytopeonly = {}
     print("")
-
     for scene_dir in model_paths:
         try:
             print("Scene:", scene_dir)
@@ -80,7 +79,7 @@ def evaluate(model_paths, cam_name,
 
             # test_dir = Path(scene_dir) / "test"
             test_dir = Path(scene_dir) / cam_name  # [YC] change
-
+            
             for method in os.listdir(test_dir):
                 print("Method:", method)
 
@@ -90,7 +89,7 @@ def evaluate(model_paths, cam_name,
                 per_view_dict_polytopeonly[scene_dir][method] = {}
 
                 method_dir = test_dir / method
-                gt_dir = method_dir/ "gt"
+                # gt_dir = method_dir/ "gt"
                 renders_dir = method_dir / "renders"
                 renders, gts, image_names = readImages(renders_dir, gt_dir)
 
@@ -151,11 +150,17 @@ def evaluate(model_paths, cam_name,
                                                         "LPIPS": {name: lp for lp, name in zip(torch.tensor(lpipss).tolist(), image_names)},
                                                         "LOSS": {name: loss for loss, name in zip(torch.tensor(losses).tolist(), image_names)},
                                                         "MASKED_LOSS": {name: mloss for mloss, name in zip(torch.tensor(masked_losses).tolist(), image_names)}})
-
-            with open(scene_dir + f"/results_{cam_name}.json", 'w') as fp:
-                json.dump(full_dict[scene_dir], fp, indent=True)
-            with open(scene_dir + f"/per_view_{cam_name}.json", 'w') as fp:
-                json.dump(per_view_dict[scene_dir], fp, indent=True)
+            if output_dir != "":
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
+                with open(Path(output_dir) / f"results_{cam_name}.json", 'w') as fp:
+                    json.dump(full_dict[scene_dir], fp, indent=True)
+                with open(Path(output_dir) / f"per_view_{cam_name}.json", 'w') as fp:
+                    json.dump(per_view_dict[scene_dir], fp, indent=True)
+            else:
+                with open(scene_dir + f"/results_{cam_name}.json", 'w') as fp:
+                    json.dump(full_dict[scene_dir], fp, indent=True)
+                with open(scene_dir + f"/per_view_{cam_name}.json", 'w') as fp:
+                    json.dump(per_view_dict[scene_dir], fp, indent=True)
         except:
             print("Unable to compute metrics for model", scene_dir)
 
@@ -168,9 +173,9 @@ if __name__ == "__main__":
     parser.add_argument('--model_paths', '-m', required=True, nargs="+", type=str, default=[])
     parser.add_argument("--cam_name", type=str, default="test", help="Name of our cam for rendering results name.")
     parser.add_argument('--gt_dir', type=str, default="")
-    parser.add_argument('--renders_dir', type=str, default="")
     parser.add_argument('--mask_dir', type=str, default="")
+    parser.add_argument('--output_dir', type=str, default="")
     args = parser.parse_args()
     evaluate(args.model_paths, args.cam_name, 
-            args.gt_dir, args.renders_dir,
-            args.mask_dir)
+            args.gt_dir, args.mask_dir,
+            args.output_dir)
