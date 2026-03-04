@@ -521,5 +521,5 @@ class GaussianModel:
         self.denom = torch.zeros((self._xyz.shape[0], 1), device=device)
         self.max_radii2D = torch.zeros((self._xyz.shape[0]), device=device)
         
-        print(f"Merged model. New point count: {self._xyz.shape[0]}")
+        # print(f"Merged model. New point count: {self._xyz.shape[0]}")
     # <<<< [YC] add
