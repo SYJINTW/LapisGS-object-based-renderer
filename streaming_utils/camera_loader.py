@@ -1,4 +1,5 @@
 import scene.dataset_readers as dataset_readers
+import os
 import numpy as np
 import math
 import torch
@@ -7,6 +8,20 @@ from utils.graphics_utils import getWorld2View2, getProjectionMatrix
 from utils.general_utils import PILtoTorch
 import cv2
 from PIL import Image
+
+
+_DEFAULT_DUMMY_IMAGE = "/mnt/data1/samk/gs-quic/cs5262_tile_quic/exp-dataset/chair/predictions/color/test/r_0.png"
+# "/home/syjintw/Desktop/NUS/dataset/my_testing_dataset/longdress/1051/test/r_0.png"
+
+# dummy image is used to initialize camera parameters like resolution, and can be replaced by any existing image. The actual content of the dummy image will not affect the camera parameters, as we only use it to extract resolution and create a placeholder tensor.
+def _load_dummy_image() -> Image.Image:
+    img_path = os.environ.get("LAPISGS_DUMMY_IMAGE", _DEFAULT_DUMMY_IMAGE)
+    if not os.path.isfile(img_path):
+        raise FileNotFoundError(
+            f"LAPISGS_DUMMY_IMAGE not found: {img_path}. "
+            "Set LAPISGS_DUMMY_IMAGE to any existing PNG/JPG for camera initialization."
+        )
+    return Image.open(img_path)
 
 class Camera(nn.Module):
     def __init__(self, resolution, colmap_id, R, T, FoVx, FoVy, depth_params, image, invdepthmap,
@@ -134,7 +149,7 @@ def load_camera_from_eyenavgs_config(camera,
                             width=width, height=height, depth_path="None", 
                             depth_params=None, is_test=False)
     
-    image = Image.open("/home/syjintw/Desktop/NUS/dataset/my_testing_dataset/longdress/1051/test/r_0.png")
+    image = _load_dummy_image()
     resolution = round(width/1.0), round(height/1.0)
     
     cam = Camera(resolution, colmap_id=cam_info.uid, 
@@ -182,7 +197,7 @@ def load_camera_from_streaming_config(camera,
                             width=width, height=height, depth_path="None", 
                             depth_params=None, is_test=False)
     
-    image = Image.open("/home/syjintw/Desktop/NUS/dataset/my_testing_dataset/longdress/1051/test/r_0.png")
+    image = _load_dummy_image()
     resolution = round(width/1.0), round(height/1.0)
     
     cam = Camera(resolution, colmap_id=cam_info.uid, 
